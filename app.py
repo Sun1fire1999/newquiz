@@ -53,12 +53,12 @@ questions_df = pd.DataFrame(QUESTIONS)
 
 # ======= العنوان الرئيسي =======
 st.markdown('<div class="main-title">📚 نظام التدريب على اختبار قانون العمل الأردني رقم (8) لسنة 1996</div>', unsafe_allow_html=True)
-st.markdown("### وتعديلاته - 400 سؤال تفاعلي")
+st.markdown("### وتعديلاته - 600 سؤال تفاعلي")
 
 # ======= الشريط الجانبي =======
 with st.sidebar:
     st.markdown("## 🧭 التنقل")
-    page = st.radio("اختر الصفحة", ["📖 المحتوى القانوني", "❓ بنك الأسئلة (400 سؤال)", "🎯 وضع الاختبار", "📊 الإحصائيات"])
+    page = st.radio("اختر الصفحة", ["📖 المحتوى القانوني", "❓ بنك الأسئلة (600 سؤال)", "🎯 وضع الاختبار", "📊 الإحصائيات"])
     
     st.markdown("---")
     st.markdown("### 📊 نظرة عامة")
@@ -91,7 +91,7 @@ if page == "📖 المحتوى القانوني":
             st.markdown(f'<div class="article-box"><div class="article-title">{article}</div>{content}</div>', unsafe_allow_html=True)
 
 # ======= الصفحة 2: بنك الأسئلة =======
-elif page == "❓ بنك الأسئلة (400 سؤال)":
+elif page == "❓ بنك الأسئلة (600 سؤال)":
     st.markdown("## ❓ بنك الأسئلة")
     
     col1, col2, col3 = st.columns(3)
@@ -176,14 +176,11 @@ elif page == "🎯 وضع الاختبار":
         # تحديد الفهرس الافتراضي للخيار في حالة وجود إجابة سابقة
         default_index = None
         if previous_entry:
-            # إيجاد الخيار المحدد سابقاً
             selected_option = previous_entry['selected']
             if selected_option in current_q['options']:
                 default_index = current_q['options'].index(selected_option)
         
         options = current_q['options']
-        # إذا كانت الإجابة محققة نعرض الراديو معطلاً (disabled) للسماح بالرجوع فقط؟
-        # لكننا سنسمح بتعديل الإجابة حتى بعد التحقق، لذا لا نعطله
         user_choice = st.radio(
             "اختر الإجابة:",
             options,
@@ -224,9 +221,6 @@ elif page == "🎯 وضع الاختبار":
                 if q_idx > 0:
                     if st.button("⬅️ السؤال السابق", key=f"prev_{q_idx}"):
                         st.session_state.quiz_index = q_idx - 1
-                        # عند العودة، سنعيد تعيين حالة التحقق (السماح بتعديل الإجابة)
-                        # لا حاجة لأننا نستخدم السجل لعرض الإجابة السابقة
-                        # لكننا نريد أن يظهر زر التحقق أيضاً، لذلك لا نغير quiz_answered
                         st.rerun()
                 
                 # زر التالي أو إنهاء الاختبار
@@ -276,7 +270,7 @@ elif page == "📊 الإحصائيات":
     st.markdown(f"""
     <div style="background: linear-gradient(135deg, #2980B9, #27AE60); padding: 20px; border-radius: 10px; color: white; text-align: center;">
         <h2>إجمالي الأسئلة المحتملة: <span style="font-size: 2.5em; font-weight: bold;">{len(QUESTIONS)}+</span></h2>
-        <p>تم إنشاء 400 سؤالاً. يمكن التوسع بإضافة المزيد من الأسئلة التفصيلية</p>
+        <p>تم إنشاء 600 سؤالاً</p>
     </div>
     """, unsafe_allow_html=True)
 
