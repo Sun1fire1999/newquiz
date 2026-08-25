@@ -46,7 +46,7 @@ if 'quiz_selected' not in st.session_state:
 if 'quiz_total' not in st.session_state:
     st.session_state.quiz_total = 0
 if 'quiz_history' not in st.session_state:
-    st.session_state.quiz_history = []
+    st.session_state.quiz_history = []  # سيحتوي على إجابات الأسئلة: [{'index': idx, 'selected': option, 'correct': bool}]
 
 # ======= تحويل الأسئلة إلى DataFrame =======
 questions_df = pd.DataFrame(QUESTIONS)
@@ -166,39 +166,87 @@ elif page == "🎯 وضع الاختبار":
         
         st.markdown(f"**السؤال:** {current_q['question']}")
         
-        options = current_q['options']
-        user_choice = st.radio("اختر الإجابة:", options, key=f"q_{q_idx}", index=None, disabled=st.session_state.quiz_answered)
+        # التحقق من وجود إجابة سابقة لهذا السؤال في التاريخ
+        previous_entry = None
+        for entry in st.session_state.quiz_history:
+            if entry['index'] == q_idx:
+                previous_entry = entry
+                break
         
-        col1, col2 = st.columns(2)
+        # تحديد الفهرس الافتراضي للخيار في حالة وجود إجابة سابقة
+        default_index = None
+        if previous_entry:
+            # إيجاد الخيار المحدد سابقاً
+            selected_option = previous_entry['selected']
+            if selected_option in current_q['options']:
+                default_index = current_q['options'].index(selected_option)
+        
+        options = current_q['options']
+        # إذا كانت الإجابة محققة نعرض الراديو معطلاً (disabled) للسماح بالرجوع فقط؟
+        # لكننا سنسمح بتعديل الإجابة حتى بعد التحقق، لذا لا نعطله
+        user_choice = st.radio(
+            "اختر الإجابة:",
+            options,
+            key=f"q_{q_idx}",
+            index=default_index,
+            disabled=False  # نسمح بالتعديل حتى بعد التحقق (للسماح بتغيير الإجابة عند الرجوع)
+        )
+        
+        col1, col2 = st.columns([1, 1])
         with col1:
-            if st.button("✅ تحقق من الإجابة", disabled=st.session_state.quiz_answered):
+            # زر التحقق: يظهر دائماً، ويقوم بتحديث السجل وإعادة حساب النتيجة
+            if st.button("✅ تحقق من الإجابة", key=f"check_{q_idx}"):
                 if user_choice is not None:
-                    st.session_state.quiz_selected = user_choice
-                    st.session_state.quiz_answered = True
-                    correct = options[current_q['correct_answer']]
-                    if user_choice == correct:
-                        st.session_state.quiz_score += 1
+                    # إزالة الإجابة السابقة لهذا السؤال إن وجدت
+                    st.session_state.quiz_history = [e for e in st.session_state.quiz_history if e['index'] != q_idx]
+                    correct_option = options[current_q['correct_answer']]
+                    is_correct = (user_choice == correct_option)
+                    # إضافة الإجابة الجديدة
+                    st.session_state.quiz_history.append({
+                        'index': q_idx,
+                        'selected': user_choice,
+                        'correct': is_correct
+                    })
+                    # إعادة حساب النتيجة من السجل
+                    st.session_state.quiz_score = sum(1 for e in st.session_state.quiz_history if e['correct'])
+                    
+                    if is_correct:
                         st.success("🎉 إجابة صحيحة!")
                     else:
-                        st.error(f"❌ إجابة خاطئة. الإجابة الصحيحة: {correct}")
-                    st.session_state.quiz_history.append({'question': current_q['question'], 'selected': user_choice, 'correct': correct, 'is_correct': user_choice == correct})
-        with col2:
-            if st.button("السؤال التالي ⏭️"):
-                if st.session_state.quiz_index < len(st.session_state.quiz_questions) - 1:
-                    st.session_state.quiz_index += 1
-                    st.session_state.quiz_answered = False
-                    st.session_state.quiz_selected = None
+                        st.error(f"❌ إجابة خاطئة. الإجابة الصحيحة: {correct_option}")
                 else:
-                    st.session_state.quiz_answered = False
-                    st.session_state.quiz_index = 0
-                    st.session_state.quiz_questions = []
-                    st.session_state.quiz_score = 0
-                    st.session_state.quiz_total = 0
-                    st.success("🏁 انتهى الاختبار!")
+                    st.warning("⚠️ الرجاء اختيار إجابة أولاً.")
         
+        with col2:
+            # أزرار التنقل بين الأسئلة
+            if st.session_state.quiz_history and any(e['index'] == q_idx for e in st.session_state.quiz_history):
+                # إذا تم التحقق من هذا السؤال (موجود في السجل) نعرض أزرار التنقل
+                if q_idx > 0:
+                    if st.button("⬅️ السؤال السابق", key=f"prev_{q_idx}"):
+                        st.session_state.quiz_index = q_idx - 1
+                        # عند العودة، سنعيد تعيين حالة التحقق (السماح بتعديل الإجابة)
+                        # لا حاجة لأننا نستخدم السجل لعرض الإجابة السابقة
+                        # لكننا نريد أن يظهر زر التحقق أيضاً، لذلك لا نغير quiz_answered
+                        st.rerun()
+                
+                # زر التالي أو إنهاء الاختبار
+                if q_idx < st.session_state.quiz_total - 1:
+                    if st.button("السؤال التالي ⏭️", key=f"next_{q_idx}"):
+                        st.session_state.quiz_index = q_idx + 1
+                        st.rerun()
+                else:
+                    if st.button("🏁 إنهاء الاختبار", key=f"finish_{q_idx}"):
+                        # عند الإنهاء، نعرض النتيجة النهائية
+                        st.session_state.quiz_questions = []
+                        st.session_state.quiz_index = 0
+                        st.session_state.quiz_score = sum(1 for e in st.session_state.quiz_history if e['correct'])
+                        st.session_state.quiz_total = 0
+                        st.success(f"🏁 انتهى الاختبار! نتيجتك النهائية: {st.session_state.quiz_score}")
+        
+        # عرض النتيجة الحالية دائمًا
         if st.session_state.quiz_total > 0:
             st.markdown("---")
-            st.markdown(f'<div class="score-box">النتيجة: {st.session_state.quiz_score} / {st.session_state.quiz_total} ({st.session_state.quiz_score/st.session_state.quiz_total*100:.0f}%)</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="score-box">النتيجة الحالية: {st.session_state.quiz_score} / {st.session_state.quiz_total}</div>', unsafe_allow_html=True)
 
 # ======= الصفحة 4: الإحصائيات =======
 elif page == "📊 الإحصائيات":
